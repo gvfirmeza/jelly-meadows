@@ -1,0 +1,19 @@
+{
+  "name": "multiplayer-game-backend",
+  "version": "1.0.0",
+  "description": "Backend WebSocket para jogo multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["multiplayer", "websocket", "game", "backend"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}

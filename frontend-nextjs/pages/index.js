@@ -15,8 +15,8 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Jogo Multiplayer - Club Penguin Minimalista</title>
-        <meta name="description" content="Jogo multiplayer online estilo Club Penguin" />
+        <title>Jelly Meadows</title>
+        <meta name="description" content="Jelly Meadows" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>

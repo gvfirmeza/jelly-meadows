@@ -47,6 +47,12 @@ export default function useGameState() {
   }, [])
 
   const movePlayer = useCallback((id, x, y) => {
+    // Não atualiza a posição do próprio jogador (client-side prediction)
+    // Isso previne glitches/rollbacks causados por latência de rede
+    if (myPlayer && id === myPlayer.id) {
+      return
+    }
+    
     setPlayers(prev => {
       const player = prev.get(id)
       if (player) {
@@ -56,7 +62,7 @@ export default function useGameState() {
       }
       return prev
     })
-  }, [])
+  }, [myPlayer])
 
   const addChatMessage = useCallback((id, message, timestamp) => {
     setPlayers(prev => {

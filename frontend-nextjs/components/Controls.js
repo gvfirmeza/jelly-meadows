@@ -4,10 +4,9 @@ export default function Controls() {
   return (
     <div className={styles.controls}>
       <h3>🎮 Controles</h3>
-      <p>⬆️ W / ↑ - Mover para cima</p>
-      <p>⬇️ S / ↓ - Mover para baixo</p>
-      <p>⬅️ A / ← - Mover para esquerda</p>
-      <p>➡️ D / → - Mover para direita</p>
+      <p>🖱️ Clique na tela para mover</p>
+      <p>💬 Use o chat para conversar</p>
+      <p>✨ Seu personagem se move suavemente</p>
     </div>
   )
 }

@@ -3,14 +3,16 @@ import useWebSocket from '../hooks/useWebSocket'
 import useGameState from '../hooks/useGameState'
 
 const PLAYER_SIZE = 40
-const MOVE_SPEED = 5
+const MOVE_SPEED = 200 // pixels por segundo
 const MESSAGE_DURATION = 3000
+const INTERPOLATION_SPEED = 0.15 // Suavização do movimento (0-1, maior = mais rápido)
 
 export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCountChange, onPlayerColorChange }) {
   const canvasRef = useRef(null)
-  const keysRef = useRef({})
   const animationRef = useRef(null)
   const hasInitializedRef = useRef(false)
+  const targetPositionRef = useRef(null) // Posição alvo do click
+  const lastFrameTimeRef = useRef(Date.now())
   
   const {
     myPlayer,
@@ -71,61 +73,115 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
     }
   }, [sendChatMessage])
 
-  // Movimento do jogador
+  // Click-to-move: Define posição alvo quando clica no canvas
+  const handleCanvasClick = useCallback((e) => {
+    if (!myPlayer || !connected) return
+    
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    
+    // Define a posição alvo
+    targetPositionRef.current = { x, y }
+  }, [myPlayer, connected])
+
+  // Movimento do jogador - INSTANTÂNEO e suave
   useEffect(() => {
     if (!myPlayer || !connected) return
 
+    let lastSentTime = 0
+    const SEND_INTERVAL = 50 // Envia atualização a cada 50ms (20 FPS de rede)
+
     const handleMovement = () => {
-      const keys = keysRef.current
-      let moved = false
-      let newX = myPlayer.x
-      let newY = myPlayer.y
+      const target = targetPositionRef.current
+      if (!target) return
 
-      if (keys['w'] || keys['W'] || keys['ArrowUp']) {
-        newY = Math.max(PLAYER_SIZE / 2, newY - MOVE_SPEED)
-        moved = true
+      const currentX = myPlayer.x
+      const currentY = myPlayer.y
+      
+      // Calcula distância até o alvo
+      const dx = target.x - currentX
+      const dy = target.y - currentY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      // Se chegou perto o suficiente, para o movimento
+      if (distance < 3) {
+        targetPositionRef.current = null
+        return
       }
-      if (keys['s'] || keys['S'] || keys['ArrowDown']) {
-        newY = Math.min(600 - PLAYER_SIZE / 2, newY + MOVE_SPEED)
-        moved = true
-      }
-      if (keys['a'] || keys['A'] || keys['ArrowLeft']) {
-        newX = Math.max(PLAYER_SIZE / 2, newX - MOVE_SPEED)
-        moved = true
-      }
-      if (keys['d'] || keys['D'] || keys['ArrowRight']) {
-        newX = Math.min(800 - PLAYER_SIZE / 2, newX + MOVE_SPEED)
-        moved = true
-      }
-
-      if (moved && (newX !== myPlayer.x || newY !== myPlayer.y)) {
-        setMyPlayerPosition(newX, newY)
-        sendMessage({ type: 'move', x: newX, y: newY })
+      
+      // Movimento mais rápido e direto (sem interpolação pesada)
+      const speed = Math.min(distance * 0.2, 8) // Velocidade adaptativa, max 8px/frame
+      const angle = Math.atan2(dy, dx)
+      const newX = currentX + Math.cos(angle) * speed
+      const newY = currentY + Math.sin(angle) * speed
+      
+      // Garante que não sai do canvas
+      const clampedX = Math.max(PLAYER_SIZE / 2, Math.min(800 - PLAYER_SIZE / 2, newX))
+      const clampedY = Math.max(PLAYER_SIZE / 2, Math.min(600 - PLAYER_SIZE / 2, newY))
+      
+      // Atualiza posição local INSTANTANEAMENTE
+      setMyPlayerPosition(clampedX, clampedY)
+      
+      // Throttle para enviar pro servidor (reduz tráfego de rede)
+      const now = Date.now()
+      if (now - lastSentTime > SEND_INTERVAL) {
+        sendMessage({ type: 'move', x: clampedX, y: clampedY })
+        lastSentTime = now
       }
     }
 
-    const interval = setInterval(handleMovement, 1000 / 60)
+    const interval = setInterval(handleMovement, 1000 / 60) // 60 FPS visual local
     return () => clearInterval(interval)
   }, [myPlayer, connected, sendMessage, setMyPlayerPosition])
 
-  // Renderização
+  // Renderização com interpolação suave para outros jogadores
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
     const ctx = canvas.getContext('2d')
+    const displayPositions = new Map() // Posições renderizadas (interpoladas)
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
+      // Desenha indicador de alvo se houver
+      if (targetPositionRef.current && myPlayer) {
+        const target = targetPositionRef.current
+        ctx.strokeStyle = myPlayer.color
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 5])
+        ctx.beginPath()
+        ctx.arc(target.x, target.y, 10, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      
       const now = Date.now()
 
       players.forEach(player => {
+        let displayX = player.x
+        let displayY = player.y
+        
+        // APENAS outros jogadores têm interpolação
+        // O próprio jogador usa a posição exata (sem lag)
+        if (myPlayer && player.id !== myPlayer.id) {
+          const lastPos = displayPositions.get(player.id)
+          if (lastPos) {
+            // Interpolação suave para outros jogadores
+            displayX = lastPos.x + (player.x - lastPos.x) * 0.3
+            displayY = lastPos.y + (player.y - lastPos.y) * 0.3
+          }
+          displayPositions.set(player.id, { x: displayX, y: displayY })
+        }
+        
         // Desenha o quadrado do jogador
         ctx.fillStyle = player.color
         ctx.fillRect(
-          player.x - PLAYER_SIZE / 2,
-          player.y - PLAYER_SIZE / 2,
+          displayX - PLAYER_SIZE / 2,
+          displayY - PLAYER_SIZE / 2,
           PLAYER_SIZE,
           PLAYER_SIZE
         )
@@ -135,8 +191,8 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
           ctx.strokeStyle = '#333'
           ctx.lineWidth = 3
           ctx.strokeRect(
-            player.x - PLAYER_SIZE / 2,
-            player.y - PLAYER_SIZE / 2,
+            displayX - PLAYER_SIZE / 2,
+            displayY - PLAYER_SIZE / 2,
             PLAYER_SIZE,
             PLAYER_SIZE
           )
@@ -148,7 +204,7 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
           ctx.font = 'bold 14px Arial'
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
-          ctx.fillText(player.name, player.x, player.y + PLAYER_SIZE / 2 + 5)
+          ctx.fillText(player.name, displayX, displayY + PLAYER_SIZE / 2 + 5)
         }
 
         // Mensagem do chat
@@ -159,8 +215,8 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
           const padding = 8
           const bubbleWidth = textWidth + padding * 2
           const bubbleHeight = 24
-          const bubbleX = player.x - bubbleWidth / 2
-          const bubbleY = player.y - PLAYER_SIZE / 2 - bubbleHeight - 10
+          const bubbleX = displayX - bubbleWidth / 2
+          const bubbleY = displayY - PLAYER_SIZE / 2 - bubbleHeight - 10
 
           ctx.beginPath()
           ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 12)
@@ -172,7 +228,7 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
           ctx.fillStyle = '#333'
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(player.message, player.x, bubbleY + bubbleHeight / 2)
+          ctx.fillText(player.message, displayX, bubbleY + bubbleHeight / 2)
         }
       })
 
@@ -188,39 +244,16 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
     }
   }, [players, myPlayer])
 
-  // Controles de teclado
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      keysRef.current[e.key] = true
-      
-      // Previne scroll das setas
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault()
-      }
-    }
-
-    const handleKeyUp = (e) => {
-      keysRef.current[e.key] = false
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [])
-
   return (
     <canvas 
       ref={canvasRef}
       width={800}
       height={600}
+      onClick={handleCanvasClick}
       style={{
         display: 'block',
         background: '#ffffff',
-        cursor: 'default'
+        cursor: 'crosshair'
       }}
     />
   )

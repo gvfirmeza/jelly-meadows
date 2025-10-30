@@ -1,8 +1,16 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 export default function useGameState() {
   const [myPlayer, setMyPlayer] = useState(null)
   const [players, setPlayers] = useState(new Map())
+  
+  // === FIX: useRef para sempre ter o valor atualizado (evita stale closure) ===
+  const myPlayerRef = useRef(null)
+  
+  // Mantém o ref sincronizado com o state
+  useEffect(() => {
+    myPlayerRef.current = myPlayer
+  }, [myPlayer])
 
   const initPlayer = useCallback((id, x, y, color, name) => {
     const player = {
@@ -47,9 +55,12 @@ export default function useGameState() {
   }, [])
 
   const movePlayer = useCallback((id, x, y) => {
+    // === FIX: Usa ref ao invés do state (evita stale closure) ===
+    const currentMyPlayer = myPlayerRef.current
+    
     // Não atualiza a posição do próprio jogador (client-side prediction)
     // Isso previne glitches/rollbacks causados por latência de rede
-    if (myPlayer && id === myPlayer.id) {
+    if (currentMyPlayer && id === currentMyPlayer.id) {
       return
     }
     
@@ -62,7 +73,7 @@ export default function useGameState() {
       }
       return prev
     })
-  }, [myPlayer])
+  }, []) // <= Removido myPlayer das dependências!
 
   const addChatMessage = useCallback((id, message, timestamp) => {
     setPlayers(prev => {
@@ -85,17 +96,19 @@ export default function useGameState() {
   }, [])
 
   const setMyPlayerPosition = useCallback((x, y) => {
+    const currentMyPlayer = myPlayerRef.current
+    
     setMyPlayer(prev => prev ? { ...prev, x, y } : null)
     setPlayers(prev => {
-      if (!myPlayer) return prev
+      if (!currentMyPlayer) return prev
       const newPlayers = new Map(prev)
-      const player = newPlayers.get(myPlayer.id)
+      const player = newPlayers.get(currentMyPlayer.id)
       if (player) {
-        newPlayers.set(myPlayer.id, { ...player, x, y })
+        newPlayers.set(currentMyPlayer.id, { ...player, x, y })
       }
       return newPlayers
     })
-  }, [myPlayer])
+  }, [])
 
   return {
     myPlayer,

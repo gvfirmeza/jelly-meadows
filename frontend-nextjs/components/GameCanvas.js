@@ -37,18 +37,13 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
       onPlayerNameChange(name)
       onPlayerColorChange(data.color)
       onConnected(true)
-      // Fix: Inicia com 1 jogador (você)
-      onPlayerCountChange(1)
       sendMessage({ type: 'join', name })
     },
     onPlayers: (data) => {
       updatePlayers(data.players)
-      // Fix: Conta jogadores existentes + você = total correto
-      onPlayerCountChange(data.players.length + 1)
     },
     onPlayerJoined: (data) => {
       addPlayer(data.player)
-      onPlayerCountChange(prev => prev + 1)
     },
     onPlayerMoved: (data) => {
       movePlayer(data.id, data.x, data.y)
@@ -58,9 +53,13 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
     },
     onPlayerLeft: (data) => {
       removePlayer(data.id)
-      onPlayerCountChange(prev => prev - 1)
     }
   })
+
+  // === FIX: Atualiza contador automaticamente baseado no Map de players ===
+  useEffect(() => {
+    onPlayerCountChange(players.size)
+  }, [players, onPlayerCountChange])
 
   // Enviar mensagem de chat
   const sendChatMessage = useCallback((message) => {
@@ -256,7 +255,11 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
       style={{
         display: 'block',
         background: '#ffffff',
-        cursor: 'crosshair'
+        cursor: 'crosshair',
+        margin: 0,
+        padding: 0,
+        border: 'none',
+        outline: 'none'
       }}
     />
   )

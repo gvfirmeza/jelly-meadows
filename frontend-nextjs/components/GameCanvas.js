@@ -37,10 +37,13 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
       onPlayerNameChange(name)
       onPlayerColorChange(data.color)
       onConnected(true)
+      // Fix: Inicia com 1 jogador (você)
+      onPlayerCountChange(1)
       sendMessage({ type: 'join', name })
     },
     onPlayers: (data) => {
       updatePlayers(data.players)
+      // Fix: Conta jogadores existentes + você = total correto
       onPlayerCountChange(data.players.length + 1)
     },
     onPlayerJoined: (data) => {

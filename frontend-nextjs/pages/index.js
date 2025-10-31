@@ -22,6 +22,15 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
+        <div className={styles.topBar}>
+          <PlayerInfo 
+            playerName={playerName} 
+            playerCount={playerCount}
+            playerColor={playerColor}
+          />
+          <Controls />
+        </div>
+        
         <div className={styles.gameContainer}>
           <GameCanvas 
             onConnected={setConnected}
@@ -29,14 +38,6 @@ export default function Home() {
             onPlayerCountChange={setPlayerCount}
             onPlayerColorChange={setPlayerColor}
           />
-          
-          <PlayerInfo 
-            playerName={playerName} 
-            playerCount={playerCount}
-            playerColor={playerColor}
-          />
-          
-          <Controls />
           
           <ChatBox connected={connected} />
         </div>

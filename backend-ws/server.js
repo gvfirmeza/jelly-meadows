@@ -70,6 +70,12 @@ wss.on('connection', (ws) => {
 
   // Armazena o ID no objeto WebSocket
   ws.playerId = playerId;
+  ws.isAlive = true; // === KEEPALIVE: Flag para detectar conexões inativas ===
+
+  // === KEEPALIVE: Responde ao ping do cliente ===
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
 
   // Envia para o novo jogador seu ID e cor
   ws.send(JSON.stringify({
@@ -137,9 +143,15 @@ wss.on('connection', (ws) => {
             });
           }
           break;
+
+        case 'ping':
+          // === KEEPALIVE: Responde ao ping do cliente ===
+          ws.send(JSON.stringify({ type: 'pong' }));
+          ws.isAlive = true;
+          break;
       }
     } catch (err) {
-      console.error('❌ Erro ao processar mensagem:', err);
+      console.error('❌ Erro ao processar mensagem:', err)
     }
   });
 
@@ -162,6 +174,36 @@ wss.on('connection', (ws) => {
   ws.on('error', (err) => {
     console.error('❌ Erro WebSocket:', err);
   });
+});
+
+// === KEEPALIVE: Verifica conexões inativas a cada 60 segundos ===
+const keepAliveInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      // Cliente não respondeu ao ping - força desconexão
+      console.log('💀 Cliente inativo detectado - forçando desconexão');
+      const playerId = ws.playerId;
+      if (playerId && players.has(playerId)) {
+        const playerName = players.get(playerId).name || 'Jogador';
+        console.log(`👋 ${playerName} removido por inatividade`);
+        players.delete(playerId);
+        broadcast({
+          type: 'playerLeft',
+          id: playerId
+        });
+      }
+      return ws.terminate();
+    }
+
+    // Marca como inativo e envia ping
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 60000); // 60 segundos
+
+// Limpa interval quando servidor fecha
+wss.on('close', () => {
+  clearInterval(keepAliveInterval);
 });
 
 // Inicia o servidor

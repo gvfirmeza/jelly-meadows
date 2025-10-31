@@ -5,6 +5,7 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
   const hasConnectedRef = useRef(false)
+  const pingIntervalRef = useRef(null) // === KEEPALIVE: Interval para ping ===
 
   useEffect(() => {
     // Previne múltiplas conexões (React Strict Mode)
@@ -23,6 +24,14 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
         console.log('✅ Conectado ao servidor')
         setConnected(true)
         hasConnectedRef.current = true
+        
+        // === KEEPALIVE: Envia ping a cada 30 segundos ===
+        pingIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }))
+            console.log('🏓 Ping enviado')
+          }
+        }, 30000) // 30 segundos
       }
 
       ws.onmessage = (event) => {
@@ -48,6 +57,10 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
             case 'playerLeft':
               onPlayerLeft(data)
               break
+            case 'pong':
+              // === KEEPALIVE: Resposta do servidor ao ping ===
+              console.log('🏓 Pong recebido')
+              break
           }
         } catch (err) {
           console.error('❌ Erro ao processar mensagem:', err)
@@ -58,6 +71,11 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
         console.log('❌ Desconectado do servidor')
         setConnected(false)
         hasConnectedRef.current = false
+        
+        // === KEEPALIVE: Limpa interval do ping ===
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current)
+        }
         
         // Tenta reconectar após 3 segundos
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -76,6 +94,9 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current)
       }
       if (wsRef.current) {
         wsRef.current.close()

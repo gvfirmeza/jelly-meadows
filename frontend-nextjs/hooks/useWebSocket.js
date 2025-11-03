@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlayerMoved, onChat, onPlayerLeft }) {
+export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlayerMoved, onChat, onPlayerLeft, onPlayerUpdated }) {
   const [connected, setConnected] = useState(false)
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
@@ -56,6 +56,12 @@ export default function useWebSocket({ onInit, onPlayers, onPlayerJoined, onPlay
               break
             case 'playerLeft':
               onPlayerLeft(data)
+              break
+            case 'playerUpdated':
+              // === CUSTOMIZAÇÃO: Evento de atualização de player (chapéu, etc) ===
+              if (onPlayerUpdated) {
+                onPlayerUpdated(data)
+              }
               break
             case 'pong':
               // === KEEPALIVE: Resposta do servidor ao ping ===

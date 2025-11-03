@@ -26,6 +26,14 @@
   line-height: 0; /* Remove espaço entre inline elements */
 }
 
+/* === CUSTOMIZAÇÃO: Container do seletor de skins === */
+.skinSelectorContainer {
+  position: absolute;
+  bottom: 90px;
+  left: 20px;
+  z-index: 100;
+}
+
 .connecting {
   position: fixed;
   top: 50%;

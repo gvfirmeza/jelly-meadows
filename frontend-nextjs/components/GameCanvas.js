@@ -7,7 +7,14 @@ const MOVE_SPEED = 200 // pixels por segundo
 const MESSAGE_DURATION = 3000
 const INTERPOLATION_SPEED = 0.15 // Suavização do movimento (0-1, maior = mais rápido)
 
-export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCountChange, onPlayerColorChange }) {
+export default function GameCanvas({ 
+  onConnected, 
+  onPlayerNameChange, 
+  onPlayerCountChange, 
+  onPlayerColorChange,
+  playerCustomization, // === CUSTOMIZAÇÃO: Recebe dados do lobby ===
+  onHatChange // === CUSTOMIZAÇÃO: Callback para mudança de chapéu ===
+}) {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
   const hasInitializedRef = useRef(false)
@@ -23,7 +30,8 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
     movePlayer,
     addChatMessage,
     removePlayer,
-    setMyPlayerPosition
+    setMyPlayerPosition,
+    updatePlayerHat // === CUSTOMIZAÇÃO: Função para atualizar chapéu ===
   } = useGameState()
 
   const { connected, sendMessage } = useWebSocket({
@@ -32,12 +40,20 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
       if (hasInitializedRef.current) return
       hasInitializedRef.current = true
       
-      const name = prompt('👤 Digite seu nome:') || 'Jogador'
-      initPlayer(data.id, data.x, data.y, data.color, name)
+      // === CUSTOMIZAÇÃO: Usa dados do lobby ao invés de prompt ===
+      const { name, color, hat } = playerCustomization
+      initPlayer(data.id, data.x, data.y, color, name, hat)
       onPlayerNameChange(name)
-      onPlayerColorChange(data.color)
+      onPlayerColorChange(color)
       onConnected(true)
-      sendMessage({ type: 'join', name })
+      
+      // Envia customizações completas para o servidor
+      sendMessage({ 
+        type: 'join', 
+        name,
+        color, // === CUSTOMIZAÇÃO: Envia cor escolhida ===
+        hat    // === CUSTOMIZAÇÃO: Envia chapéu escolhido ===
+      })
     },
     onPlayers: (data) => {
       updatePlayers(data.players)
@@ -53,6 +69,16 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
     },
     onPlayerLeft: (data) => {
       removePlayer(data.id)
+    },
+    // === CUSTOMIZAÇÃO: Handler para atualizações de player ===
+    onPlayerUpdated: (data) => {
+      if (data.hat !== undefined) {
+        updatePlayerHat(data.id, data.hat)
+        // Atualiza callback se for o próprio jogador
+        if (myPlayer && data.id === myPlayer.id && onHatChange) {
+          onHatChange(data.hat)
+        }
+      }
     }
   })
 
@@ -60,6 +86,32 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
   useEffect(() => {
     onPlayerCountChange(players.size)
   }, [players, onPlayerCountChange])
+
+  // === CUSTOMIZAÇÃO: Função para trocar chapéu ===
+  const handleHatChange = useCallback((newHat) => {
+    if (!myPlayer || !connected) return
+    
+    // Atualiza localmente
+    updatePlayerHat(myPlayer.id, newHat)
+    
+    // Envia para o servidor
+    sendMessage({
+      type: 'updateHat',
+      hat: newHat
+    })
+    
+    // Callback para o componente pai
+    if (onHatChange) {
+      onHatChange(newHat)
+    }
+  }, [myPlayer, connected, sendMessage, updatePlayerHat, onHatChange])
+
+  // Expõe função de trocar chapéu globalmente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.changePlayerHat = handleHatChange
+    }
+  }, [handleHatChange])
 
   // Enviar mensagem de chat
   const sendChatMessage = useCallback((message) => {
@@ -200,6 +252,29 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
           )
         }
 
+        // === CUSTOMIZAÇÃO: Desenha chapéu/skin acima do jogador ===
+        if (player.hat && player.hat !== 'none') {
+          // Mapa de emojis dos chapéus
+          const hatEmojis = {
+            crown: '👑',
+            tophat: '🎩',
+            cowboy: '🤠',
+            santa: '🎅',
+            wizard: '🧙',
+            ninja: '🥷',
+            pirate: '🏴‍☠️'
+          }
+          
+          const hatEmoji = hatEmojis[player.hat]
+          if (hatEmoji) {
+            ctx.font = '32px Arial'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'bottom'
+            // Desenha o emoji acima do quadrado
+            ctx.fillText(hatEmoji, displayX, displayY - PLAYER_SIZE / 2 - 5)
+          }
+        }
+
         // Nome do jogador
         if (player.name) {
           ctx.fillStyle = '#333'
@@ -247,20 +322,24 @@ export default function GameCanvas({ onConnected, onPlayerNameChange, onPlayerCo
   }, [players, myPlayer])
 
   return (
-    <canvas 
-      ref={canvasRef}
-      width={800}
-      height={600}
-      onClick={handleCanvasClick}
-      style={{
-        display: 'block',
-        background: '#ffffff',
-        cursor: 'crosshair',
-        margin: 0,
-        padding: 0,
-        border: 'none',
-        outline: 'none'
-      }}
-    />
+    <>
+      <canvas 
+        ref={canvasRef}
+        width={800}
+        height={600}
+        onClick={handleCanvasClick}
+        style={{
+          display: 'block',
+          background: '#ffffff',
+          cursor: 'crosshair',
+          margin: 0,
+          padding: 0,
+          border: 'none',
+          outline: 'none'
+        }}
+      />
+      {/* Expõe handleHatChange para uso externo */}
+      {typeof window !== 'undefined' && (window.__handleHatChange = handleHatChange, null)}
+    </>
   )
 }

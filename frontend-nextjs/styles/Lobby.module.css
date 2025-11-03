@@ -1,0 +1,255 @@
+.lobbyContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+  overflow-y: auto; /* Permite scroll se necessário */
+}
+
+.lobbyCard {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 100%;
+  max-height: 95vh; /* Limita altura para caber na tela */
+  overflow-y: auto; /* Scroll interno se necessário */
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: bold;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: all 0.3s;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Grid de Cores */
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.colorButton {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.colorButton:hover {
+  transform: scale(1.08);
+}
+
+.colorButtonSelected {
+  border-color: #333;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transform: scale(1.12);
+}
+
+.colorButtonSelected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Grid de Chapéus */
+.hatGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.hatButton {
+  aspect-ratio: 1;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.hatButton:hover {
+  transform: scale(1.05);
+  border-color: #667eea;
+}
+
+.hatButtonSelected {
+  border-color: #667eea;
+  border-width: 3px;
+  background: #f0f4ff;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.hatEmoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.noHat {
+  font-size: 20px;
+  color: #ccc;
+}
+
+/* Preview do Personagem */
+.preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 10px;
+}
+
+.previewPlayer {
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  border: 3px solid #333;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewHat {
+  position: absolute;
+  top: -20px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.previewName {
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+/* Mensagem de Erro */
+.error {
+  background: #fee;
+  color: #c33;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+/* Botão de Entrar */
+.joinButton {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.joinButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+.joinButton:active {
+  transform: translateY(0);
+}
+
+/* Scroll suave */
+.lobbyCard::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lobbyCard::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.lobbyCard::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.lobbyCard::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}

@@ -12,13 +12,14 @@ export default function useGameState() {
     myPlayerRef.current = myPlayer
   }, [myPlayer])
 
-  const initPlayer = useCallback((id, x, y, color, name) => {
+  const initPlayer = useCallback((id, x, y, color, name, hat = 'none') => {
     const player = {
       id,
       x,
       y,
       color,
       name,
+      hat, // === CUSTOMIZAÇÃO: Adiciona chapéu ===
       message: '',
       messageTime: 0
     }
@@ -33,6 +34,7 @@ export default function useGameState() {
         if (!newPlayers.has(player.id)) {
           newPlayers.set(player.id, {
             ...player,
+            hat: player.hat || 'none', // === CUSTOMIZAÇÃO: Garante que tem chapéu ===
             message: '',
             messageTime: 0
           })
@@ -47,6 +49,7 @@ export default function useGameState() {
       const newPlayers = new Map(prev)
       newPlayers.set(player.id, {
         ...player,
+        hat: player.hat || 'none', // === CUSTOMIZAÇÃO: Garante que tem chapéu ===
         message: '',
         messageTime: 0
       })
@@ -95,6 +98,25 @@ export default function useGameState() {
     })
   }, [])
 
+  // === CUSTOMIZAÇÃO: Atualiza chapéu do jogador ===
+  const updatePlayerHat = useCallback((id, hat) => {
+    // Atualiza o próprio jogador
+    if (myPlayerRef.current && id === myPlayerRef.current.id) {
+      setMyPlayer(prev => prev ? { ...prev, hat } : null)
+    }
+    
+    // Atualiza no Map de players
+    setPlayers(prev => {
+      const player = prev.get(id)
+      if (player) {
+        const newPlayers = new Map(prev)
+        newPlayers.set(id, { ...player, hat })
+        return newPlayers
+      }
+      return prev
+    })
+  }, [])
+
   const setMyPlayerPosition = useCallback((x, y) => {
     const currentMyPlayer = myPlayerRef.current
     
@@ -119,6 +141,7 @@ export default function useGameState() {
     movePlayer,
     addChatMessage,
     removePlayer,
-    setMyPlayerPosition
+    setMyPlayerPosition,
+    updatePlayerHat // === CUSTOMIZAÇÃO: Exporta nova função ===
   }
 }

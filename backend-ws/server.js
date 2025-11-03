@@ -64,6 +64,7 @@ wss.on('connection', (ws) => {
     y: Math.floor(Math.random() * 500) + 50,
     color: getRandomColor(),
     name: '',
+    hat: 'none', // === CUSTOMIZAÇÃO: Chapéu padrão ===
     message: '',
     messageTime: 0
   };
@@ -83,7 +84,8 @@ wss.on('connection', (ws) => {
     id: playerId,
     color: playerData.color,
     x: playerData.x,
-    y: playerData.y
+    y: playerData.y,
+    hat: playerData.hat // === CUSTOMIZAÇÃO: Envia chapéu inicial ===
   }));
 
   // Envia para o novo jogador a lista de jogadores existentes
@@ -101,8 +103,10 @@ wss.on('connection', (ws) => {
       // Atualiza dados do jogador baseado no tipo de mensagem
       switch (message.type) {
         case 'join':
-          // Jogador entra com nome
+          // === CUSTOMIZAÇÃO: Jogador entra com nome, cor e chapéu ===
           playerData.name = message.name;
+          playerData.color = message.color || playerData.color; // Usa cor escolhida ou padrão
+          playerData.hat = message.hat || 'none'; // Usa chapéu escolhido ou nenhum
           players.set(playerId, playerData);
 
           console.log(`✅ ${message.name} entrou no jogo (Total: ${players.size})`);
@@ -148,6 +152,23 @@ wss.on('connection', (ws) => {
           // === KEEPALIVE: Responde ao ping do cliente ===
           ws.send(JSON.stringify({ type: 'pong' }));
           ws.isAlive = true;
+          break;
+
+        case 'updateHat':
+          // === CUSTOMIZAÇÃO: Atualiza chapéu do jogador ===
+          if (players.has(playerId)) {
+            playerData.hat = message.hat;
+            players.set(playerId, playerData);
+
+            console.log(`🎩 ${playerData.name} trocou para chapéu: ${message.hat}`);
+
+            // Notifica todos sobre a mudança
+            broadcast({
+              type: 'playerUpdated',
+              id: playerId,
+              hat: message.hat
+            });
+          }
           break;
       }
     } catch (err) {

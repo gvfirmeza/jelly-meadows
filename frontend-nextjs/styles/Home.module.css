@@ -16,6 +16,8 @@
   padding: 15px 30px;
   border-radius: 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .gameContainer {
@@ -23,7 +25,8 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border-radius: 10px;
   overflow: hidden;
-  line-height: 0; /* Remove espaço entre inline elements */
+  line-height: 0;
+  max-width: 100%;
 }
 
 /* === CUSTOMIZAÇÃO: Container do seletor de skins === */
@@ -32,6 +35,37 @@
   bottom: 90px;
   left: 20px;
   z-index: 100;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .main {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .topBar {
+    padding: 10px 15px;
+    gap: 15px;
+    width: 100%;
+  }
+
+  .gameContainer {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .skinSelectorContainer {
+    bottom: 20px;
+    left: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topBar {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
 .connecting {

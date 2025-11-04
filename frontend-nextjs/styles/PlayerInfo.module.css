@@ -13,3 +13,20 @@
 .info strong {
   color: #667eea;
 }
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .info {
+    font-size: 13px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .info {
+    font-size: 12px;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+}

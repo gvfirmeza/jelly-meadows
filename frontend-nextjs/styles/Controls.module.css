@@ -19,3 +19,30 @@
   margin: 4px 0;
   line-height: 1.5;
 }
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .controls {
+    font-size: 11px;
+    max-width: 100%;
+  }
+
+  .controls h3 {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .controls p {
+    margin: 3px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .controls {
+    font-size: 10px;
+  }
+
+  .controls h3 {
+    font-size: 12px;
+  }
+}

@@ -10,7 +10,7 @@
   align-items: center;
   z-index: 9999;
   padding: 20px;
-  overflow-y: auto; /* Permite scroll se necessário */
+  overflow-y: auto;
 }
 
 .lobbyCard {
@@ -20,9 +20,76 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 650px;
   width: 100%;
-  max-height: 95vh; /* Limita altura para caber na tela */
-  overflow-y: auto; /* Scroll interno se necessário */
+  max-height: 95vh;
+  overflow-y: auto;
   animation: slideIn 0.3s ease-out;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .lobbyContainer {
+    padding: 10px;
+  }
+
+  .lobbyCard {
+    padding: 20px;
+    max-width: 100%;
+    border-radius: 15px;
+  }
+
+  .title {
+    font-size: 24px !important;
+  }
+
+  .subtitle {
+    font-size: 13px !important;
+  }
+
+  .colorGrid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .hatGrid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .hatEmoji {
+    font-size: 24px !important;
+  }
+
+  .input {
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .lobbyCard {
+    padding: 15px;
+  }
+
+  .title {
+    font-size: 22px !important;
+  }
+
+  .colorGrid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .hatGrid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .previewPlayer {
+    width: 45px !important;
+    height: 45px !important;
+  }
+
+  .previewHat {
+    font-size: 24px !important;
+    top: -18px !important;
+  }
 }
 
 @keyframes slideIn {

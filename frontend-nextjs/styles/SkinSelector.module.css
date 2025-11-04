@@ -36,8 +36,30 @@
   padding: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   min-width: 320px;
+  max-width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
   z-index: 1000;
   animation: slideUp 0.3s ease-out;
+}
+
+/* Scrollbar customizado para o menu */
+.menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.menu::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.menu::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.menu::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
 }
 
 @keyframes slideUp {
@@ -91,6 +113,9 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 .hatButton {
@@ -133,4 +158,52 @@
   font-size: 12px;
   color: #666;
   text-align: center;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .menu {
+    min-width: 280px;
+    max-width: 90vw;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 70px;
+  }
+
+  .hatGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .hatButton {
+    padding: 12px;
+  }
+
+  .hatEmoji {
+    font-size: 30px;
+  }
+
+  .toggleButton {
+    width: 45px;
+    height: 45px;
+    font-size: 20px;
+  }
+
+  .currentHat {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu {
+    min-width: 260px;
+  }
+
+  .hatEmoji {
+    font-size: 28px;
+  }
+
+  .hatName {
+    font-size: 11px;
+  }
 }

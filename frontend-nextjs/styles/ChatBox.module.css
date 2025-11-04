@@ -56,3 +56,42 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+  .chatContainer {
+    bottom: 15px;
+    left: 15px;
+    right: 15px;
+    gap: 8px;
+  }
+
+  .chatInput {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .sendButton {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chatContainer {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+
+  .chatInput {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .sendButton {
+    padding: 8px 15px;
+    font-size: 12px;
+  }
+}

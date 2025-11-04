@@ -254,24 +254,26 @@ export default function GameCanvas({
 
         // === CUSTOMIZAÇÃO: Desenha chapéu/skin acima do jogador ===
         if (player.hat && player.hat !== 'none') {
-          // Mapa de emojis dos chapéus
+          // Mapa de emojis dos chapéus - sincronizado com Lobby e SkinSelector
           const hatEmojis = {
-            crown: '👑',
-            tophat: '🎩',
-            cowboy: '🤠',
-            santa: '🎅',
-            wizard: '🧙',
-            ninja: '🥷',
-            pirate: '🏴‍☠️'
+            crown: '\u{1F451}',      // 👑
+            tophat: '\u{1F3A9}',     // 🎩
+            graduate: '\u{1F393}',   // 🎓
+            cap: '\u{1F9E2}',        // 🧢
+            sunhat: '\u{1F452}',     // 👒
+            poop: '\u{1F4A9}',       // 💩
+            eyes: '\u{1F440}',       // 👀
+            bow: '\u{1F380}',        // 🎀
+            plant: '\u{1F331}'       // 🌱
           }
           
           const hatEmoji = hatEmojis[player.hat]
           if (hatEmoji) {
-            ctx.font = '32px Arial'
+            ctx.font = '28px Arial'
             ctx.textAlign = 'center'
             ctx.textBaseline = 'bottom'
-            // Desenha o emoji acima do quadrado
-            ctx.fillText(hatEmoji, displayX, displayY - PLAYER_SIZE / 2 - 5)
+            // Desenha o emoji acima do quadrado (ajustado para ficar mais próximo)
+            ctx.fillText(hatEmoji, displayX, displayY - PLAYER_SIZE / 2 + 2)
           }
         }
 

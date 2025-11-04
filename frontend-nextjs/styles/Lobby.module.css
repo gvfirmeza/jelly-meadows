@@ -88,7 +88,7 @@
 
   .previewHat {
     font-size: 24px !important;
-    top: -18px !important;
+    top: -6px !important;
   }
 }
 
@@ -250,9 +250,10 @@
 
 .previewHat {
   position: absolute;
-  top: -20px;
+  top: -8px;
   font-size: 28px;
   line-height: 1;
+  pointer-events: none;
 }
 
 .previewName {

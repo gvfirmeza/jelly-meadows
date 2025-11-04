@@ -6,11 +6,13 @@ const AVAILABLE_HATS = [
   { id: 'none', name: 'Sem chapéu', emoji: '' },
   { id: 'crown', name: '👑 Coroa', emoji: '👑' },
   { id: 'tophat', name: '🎩 Cartola', emoji: '🎩' },
-  { id: 'cowboy', name: '🤠 Cowboy', emoji: '🤠' },
-  { id: 'santa', name: '🎅 Papai Noel', emoji: '🎅' },
-  { id: 'wizard', name: '🧙 Mago', emoji: '🧙' },
-  { id: 'ninja', name: '🥷 Ninja', emoji: '🥷' },
-  { id: 'pirate', name: '🏴‍☠️ Pirata', emoji: '🏴‍☠️' },
+  { id: 'graduate', name: '🎓 Formatura', emoji: '🎓' },
+  { id: 'cap', name: '� Boné', emoji: '�' },
+  { id: 'sunhat', name: '👒 Chapéu de Sol', emoji: '👒' },
+  { id: 'poop', name: '💩 Cocô', emoji: '💩' },
+  { id: 'eyes', name: '👀 Olhos', emoji: '👀' },
+  { id: 'bow', name: '🎀 Laço', emoji: '🎀' },
+  { id: 'plant', name: '� Plantinha', emoji: '�' }
 ]
 
 export default function SkinSelector({ currentHat, onSelectHat }) {

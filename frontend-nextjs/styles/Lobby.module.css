@@ -18,7 +18,7 @@
   border-radius: 20px;
   padding: 30px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 500px;
+  max-width: 650px;
   width: 100%;
   max-height: 95vh; /* Limita altura para caber na tela */
   overflow-y: auto; /* Scroll interno se necessário */

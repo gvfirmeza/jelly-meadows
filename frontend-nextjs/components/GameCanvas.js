@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import useWebSocket from '../hooks/useWebSocket'
 import useGameState from '../hooks/useGameState'
 
@@ -6,6 +6,16 @@ const PLAYER_SIZE = 40
 const MOVE_SPEED = 200 // pixels por segundo
 const MESSAGE_DURATION = 3000
 const INTERPOLATION_SPEED = 0.15 // Suavização do movimento (0-1, maior = mais rápido)
+
+// Mapeamento de IDs para caminhos de imagem
+const HAT_IMAGES = {
+  'cap': '/hats/cap.png',
+  'sunhat': '/hats/hat.png',
+  'party': '/hats/mexican-hat.png',
+  'graduate': '/hats/pamela-hat.png',
+  'wizard': '/hats/wizard-hat.png',
+  'viking': '/hats/cowboy-hat.png'
+}
 
 export default function GameCanvas({ 
   onConnected, 
@@ -20,6 +30,18 @@ export default function GameCanvas({
   const hasInitializedRef = useRef(false)
   const targetPositionRef = useRef(null) // Posição alvo do click
   const lastFrameTimeRef = useRef(Date.now())
+  const [hatImages, setHatImages] = useState({})
+  
+  // Carrega as imagens dos chapéus
+  useEffect(() => {
+    const loadedImages = {}
+    Object.entries(HAT_IMAGES).forEach(([id, src]) => {
+      const img = new Image()
+      img.src = src
+      loadedImages[id] = img
+    })
+    setHatImages(loadedImages)
+  }, [])
   
   const {
     myPlayer,
@@ -231,49 +253,79 @@ export default function GameCanvas({
           displayPositions.set(player.id, { x: displayX, y: displayY })
         }
         
-        // Desenha o quadrado do jogador
+        // Desenha a gelatina
+        const radius = PLAYER_SIZE / 2
+        
+        // Sombra embaixo da gelatina
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+        ctx.beginPath()
+        ctx.ellipse(displayX, displayY + radius - 2, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2)
+        ctx.fill()
+        
+        // Corpo principal da gelatina (formato de gota/blob)
+        ctx.save()
+        ctx.globalAlpha = 0.85 // Translucidez
         ctx.fillStyle = player.color
-        ctx.fillRect(
-          displayX - PLAYER_SIZE / 2,
-          displayY - PLAYER_SIZE / 2,
-          PLAYER_SIZE,
-          PLAYER_SIZE
-        )
-
-        // Borda para jogador local
+        ctx.beginPath()
+        
+        // Desenha forma de gelatina usando curvas bezier
+        const top = displayY - radius * 0.9
+        const bottom = displayY + radius * 0.9
+        const left = displayX - radius * 0.9
+        const right = displayX + radius * 0.9
+        
+        // Forma arredondada tipo gelatina
+        ctx.moveTo(displayX, top)
+        ctx.bezierCurveTo(right, top, right, displayY, right, bottom - 5)
+        ctx.bezierCurveTo(right, bottom, displayX + 5, bottom, displayX, bottom)
+        ctx.bezierCurveTo(displayX - 5, bottom, left, bottom, left, bottom - 5)
+        ctx.bezierCurveTo(left, displayY, left, top, displayX, top)
+        
+        ctx.fill()
+        
+        // Brilho/reflexo da gelatina (parte clara)
+        ctx.globalAlpha = 0.4
+        ctx.fillStyle = 'white'
+        ctx.beginPath()
+        ctx.ellipse(displayX - radius * 0.3, displayY - radius * 0.4, radius * 0.35, radius * 0.5, -0.3, 0, Math.PI * 2)
+        ctx.fill()
+        
+        // Brilho pequeno adicional
+        ctx.globalAlpha = 0.6
+        ctx.beginPath()
+        ctx.arc(displayX - radius * 0.15, displayY - radius * 0.2, radius * 0.15, 0, Math.PI * 2)
+        ctx.fill()
+        
+        ctx.restore()
+        
+        // Contorno para jogador local (mais grosso e visível)
         if (player.id === myPlayer?.id) {
-          ctx.strokeStyle = '#333'
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
           ctx.lineWidth = 3
-          ctx.strokeRect(
-            displayX - PLAYER_SIZE / 2,
-            displayY - PLAYER_SIZE / 2,
-            PLAYER_SIZE,
-            PLAYER_SIZE
-          )
+          ctx.beginPath()
+          ctx.moveTo(displayX, top)
+          ctx.bezierCurveTo(right, top, right, displayY, right, bottom - 5)
+          ctx.bezierCurveTo(right, bottom, displayX + 5, bottom, displayX, bottom)
+          ctx.bezierCurveTo(displayX - 5, bottom, left, bottom, left, bottom - 5)
+          ctx.bezierCurveTo(left, displayY, left, top, displayX, top)
+          ctx.stroke()
         }
 
         // === CUSTOMIZAÇÃO: Desenha chapéu/skin acima do jogador ===
-        if (player.hat && player.hat !== 'none') {
-          // Mapa de emojis dos chapéus - sincronizado com Lobby e SkinSelector
-          const hatEmojis = {
-            crown: '\u{1F451}',      // 👑
-            tophat: '\u{1F3A9}',     // 🎩
-            graduate: '\u{1F393}',   // 🎓
-            cap: '\u{1F9E2}',        // 🧢
-            sunhat: '\u{1F452}',     // 👒
-            poop: '\u{1F4A9}',       // 💩
-            eyes: '\u{1F440}',       // 👀
-            bow: '\u{1F380}',        // 🎀
-            plant: '\u{1F331}'       // 🌱
-          }
-          
-          const hatEmoji = hatEmojis[player.hat]
-          if (hatEmoji) {
-            ctx.font = '28px Arial'
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'bottom'
-            // Desenha o emoji acima do quadrado (ajustado para ficar mais próximo)
-            ctx.fillText(hatEmoji, displayX, displayY - PLAYER_SIZE / 2 + 2)
+        if (player.hat && player.hat !== 'none' && hatImages[player.hat]) {
+          const hatImg = hatImages[player.hat]
+          // Só desenha se a imagem foi carregada com sucesso
+          if (hatImg.complete && hatImg.naturalWidth > 0) {
+            const hatSize = 35
+            // Offset específico: wizard mais próximo, resto padrão
+            const hatOffset = (player.hat === 'wizard') ? 14 : 18
+            ctx.drawImage(
+              hatImg,
+              displayX - hatSize / 2,
+              displayY - PLAYER_SIZE / 2 - hatSize + hatOffset,
+              hatSize,
+              hatSize
+            )
           }
         }
 

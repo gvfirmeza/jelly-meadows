@@ -6,11 +6,41 @@
   bottom: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 9999;
   padding: 20px;
   overflow-y: auto;
+  gap: 20px;
+}
+
+/* Título grande estilo cartoon */
+.bigTitle {
+  font-family: 'Arial Black', 'Impact', sans-serif;
+  font-size: 72px;
+  font-weight: 900;
+  color: #FFF4D9;
+  text-align: center;
+  text-shadow: 
+    4px 4px 0px #FF6B9D,
+    8px 8px 0px #C44569,
+    -2px -2px 0px #FFA07A,
+    0px 0px 20px rgba(255, 107, 157, 0.5);
+  letter-spacing: 2px;
+  margin: 0;
+  padding: 20px;
+  animation: titleBounce 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes titleBounce {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.05) translateY(-10px);
+  }
 }
 
 .lobbyCard {
@@ -20,7 +50,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 650px;
   width: 100%;
-  max-height: 95vh;
+  max-height: 70vh;
   overflow-y: auto;
   animation: slideIn 0.3s ease-out;
 }
@@ -29,12 +59,23 @@
 @media (max-width: 768px) {
   .lobbyContainer {
     padding: 10px;
+    gap: 15px;
+  }
+
+  .bigTitle {
+    font-size: 48px;
+    text-shadow: 
+      3px 3px 0px #FF6B9D,
+      6px 6px 0px #C44569,
+      -1px -1px 0px #FFA07A;
+    padding: 10px;
   }
 
   .lobbyCard {
     padding: 20px;
-    max-width: 100%;
+    max-width: 95%;
     border-radius: 15px;
+    max-height: 65vh;
   }
 
   .title {
@@ -51,7 +92,7 @@
   }
 
   .hatGrid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(4, 1fr) !important;
     gap: 8px !important;
   }
 
@@ -65,8 +106,18 @@
 }
 
 @media (max-width: 480px) {
+  .bigTitle {
+    font-size: 36px;
+    text-shadow: 
+      2px 2px 0px #FF6B9D,
+      4px 4px 0px #C44569,
+      -1px -1px 0px #FFA07A;
+    letter-spacing: 1px;
+  }
+
   .lobbyCard {
     padding: 15px;
+    max-width: 98%;
   }
 
   .title {
@@ -74,7 +125,7 @@
   }
 
   .colorGrid {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(5, 1fr) !important;
   }
 
   .hatGrid {
@@ -88,7 +139,7 @@
 
   .previewHat {
     font-size: 24px !important;
-    top: -6px !important;
+    top: -18px !important;
   }
 }
 
@@ -201,7 +252,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  padding: 12px;
+  position: relative;
+  min-height: 100px;
 }
 
 .hatButton:hover {
@@ -214,6 +267,29 @@
   border-width: 3px;
   background: #f0f4ff;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.hatImageWrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.hatImage {
+  object-fit: contain !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 60px !important;
+  max-height: 60px !important;
+}
+
+.noHat {
+  font-size: 30px;
+  color: #ccc;
+  font-weight: bold;
 }
 
 .hatEmoji {
@@ -233,8 +309,13 @@
   align-items: center;
   gap: 10px;
   padding: 15px;
-  background: #f8f8f8;
+  background: #f8f9ff;
   border-radius: 10px;
+}
+
+.previewCanvas {
+  border-radius: 5px;
+  background: #fff;
 }
 
 .previewPlayer {
@@ -250,7 +331,7 @@
 
 .previewHat {
   position: absolute;
-  top: -8px;
+  top: -20px;
   font-size: 28px;
   line-height: 1;
   pointer-events: none;

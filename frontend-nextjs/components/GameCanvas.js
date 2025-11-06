@@ -7,6 +7,49 @@ const MOVE_SPEED = 200 // pixels por segundo
 const MESSAGE_DURATION = 3000
 const INTERPOLATION_SPEED = 0.15 // Suavização do movimento (0-1, maior = mais rápido)
 
+// === SALAS: Definição dos portais (agora com portais de retorno) ===
+const PORTALS = {
+  // Sala Central - Setas para as salas laterais
+  central_left: { 
+    x: 30, y: 300, width: 40, height: 60, 
+    targetRoom: 'leftRoom', spawnX: 650, spawnY: 300, 
+    visibleIn: 'central', label: 'LAGO', color: 'blue' 
+  },
+  central_right: { 
+    x: 730, y: 300, width: 40, height: 60, 
+    targetRoom: 'rightRoom', spawnX: 150, spawnY: 300, 
+    visibleIn: 'central', label: 'CLAREIRA', color: 'orange' 
+  },
+  // Sala do Lago - Seta de volta (direita -> central)
+  leftRoom_back: { 
+    x: 730, y: 300, width: 40, height: 60, 
+    targetRoom: 'central', spawnX: 150, spawnY: 300, 
+    visibleIn: 'leftRoom', label: 'VOLTAR', color: 'green' 
+  },
+  // Sala da Clareira - Seta de volta (esquerda -> central)
+  rightRoom_back: { 
+    x: 30, y: 300, width: 40, height: 60, 
+    targetRoom: 'central', spawnX: 650, spawnY: 300, 
+    visibleIn: 'rightRoom', label: 'VOLTAR', color: 'green' 
+  }
+}
+
+// === SALAS: Backgrounds por sala ===
+const ROOM_BACKGROUNDS = {
+  // Keep these as fallbacks when no image is available
+  central: '#A8E6CF',    // Verde claro (prado/vila)
+  leftRoom: '#87CEEB',   // Azul claro (lago)
+  rightRoom: '#FFE4B5'   // Bege (clareira)
+}
+
+// Paths for room background images (files should be under public/rooms)
+// Using the provided welcome image for the central room
+const ROOM_BACKGROUND_IMAGES = {
+  central: '/rooms/welcome_room.png',
+  leftRoom: null,
+  rightRoom: null
+}
+
 // Mapeamento de IDs para caminhos de imagem
 const HAT_IMAGES = {
   'cap': '/hats/cap.png',
@@ -27,10 +70,26 @@ export default function GameCanvas({
 }) {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
+  const chatMessagesRef = useRef(new Map()) // mensagens locais para evitar tocar no estado global
   const hasInitializedRef = useRef(false)
   const targetPositionRef = useRef(null) // Posição alvo do click
   const lastFrameTimeRef = useRef(Date.now())
   const [hatImages, setHatImages] = useState({})
+  const [roomImages, setRoomImages] = useState({ central: null, leftRoom: null, rightRoom: null })
+
+  // Adiciona mensagem localmente e programa remoção após MESSAGE_DURATION
+  const addLocalChatMessage = useCallback((id, message, timestamp) => {
+    if (!id) return
+    chatMessagesRef.current.set(id, { message, timestamp })
+
+    // Remove depois de MESSAGE_DURATION
+    setTimeout(() => {
+      const entry = chatMessagesRef.current.get(id)
+      if (entry && entry.timestamp === timestamp) {
+        chatMessagesRef.current.delete(id)
+      }
+    }, MESSAGE_DURATION + 100)
+  }, [])
   
   // Carrega as imagens dos chapéus
   useEffect(() => {
@@ -42,18 +101,38 @@ export default function GameCanvas({
     })
     setHatImages(loadedImages)
   }, [])
+
+  // Carrega imagens de background das salas (se existirem em /public/rooms)
+  useEffect(() => {
+    const imgs = {}
+    Object.entries(ROOM_BACKGROUND_IMAGES).forEach(([room, path]) => {
+      if (!path) return
+      const img = new Image()
+      img.src = path
+      img.onload = () => {
+        setRoomImages(prev => ({ ...prev, [room]: img }))
+      }
+      img.onerror = () => {
+        // Falha ao carregar - mantém fallback de cor
+        console.warn('Não foi possível carregar background da sala:', path)
+      }
+    })
+  }, [])
   
   const {
     myPlayer,
     players,
+    currentRoom,
+    setCurrentRoom,
     initPlayer,
     updatePlayers,
+    clearPlayers,
     addPlayer,
     movePlayer,
     addChatMessage,
     removePlayer,
     setMyPlayerPosition,
-    updatePlayerHat // === CUSTOMIZAÇÃO: Função para atualizar chapéu ===
+    updatePlayerHat
   } = useGameState()
 
   const { connected, sendMessage } = useWebSocket({
@@ -64,7 +143,7 @@ export default function GameCanvas({
       
       // === CUSTOMIZAÇÃO: Usa dados do lobby ao invés de prompt ===
       const { name, color, hat } = playerCustomization
-      initPlayer(data.id, data.x, data.y, color, name, hat)
+      initPlayer(data.id, data.x, data.y, color, name, hat, data.room || 'central')
       onPlayerNameChange(name)
       onPlayerColorChange(color)
       onConnected(true)
@@ -73,8 +152,8 @@ export default function GameCanvas({
       sendMessage({ 
         type: 'join', 
         name,
-        color, // === CUSTOMIZAÇÃO: Envia cor escolhida ===
-        hat    // === CUSTOMIZAÇÃO: Envia chapéu escolhido ===
+        color,
+        hat
       })
     },
     onPlayers: (data) => {
@@ -87,22 +166,40 @@ export default function GameCanvas({
       movePlayer(data.id, data.x, data.y)
     },
     onChat: (data) => {
-      addChatMessage(data.id, data.message, data.timestamp)
+      console.log('📨 Chat recebido:', data)
+      // Mantemos mensagens de chat localmente no GameCanvas para evitar atualizar o Map de players
+      // Isso reduz re-renders e evita efeitos colaterais na UI
+      addLocalChatMessage(data.id, data.message, data.timestamp)
     },
     onPlayerLeft: (data) => {
       removePlayer(data.id)
+      // Limpa mensagem local do jogador que saiu
+      if (chatMessagesRef.current.has(data.id)) {
+        chatMessagesRef.current.delete(data.id)
+      }
     },
-    // === CUSTOMIZAÇÃO: Handler para atualizações de player ===
     onPlayerUpdated: (data) => {
       if (data.hat !== undefined) {
         updatePlayerHat(data.id, data.hat)
-        // Atualiza callback se for o próprio jogador
         if (myPlayer && data.id === myPlayer.id && onHatChange) {
           onHatChange(data.hat)
         }
       }
+    },
+    // === SALAS: Novo handler para mudança de sala ===
+    onRoomChanged: (data) => {
+      console.log(`🚪 Mudou para sala: ${data.room}`)
+      setCurrentRoom(data.room)
+      clearPlayers() // Remove jogadores da sala antiga
+      updatePlayers(data.players) // Adiciona jogadores da nova sala
+      setMyPlayerPosition(data.x, data.y) // Atualiza posição do spawn
+      targetPositionRef.current = null // Cancela movimento em andamento
+        // Limpa mensagens locais ao trocar de sala
+        chatMessagesRef.current.clear()
     }
   })
+
+    
 
   // === FIX: Atualiza contador automaticamente baseado no Map de players ===
   useEffect(() => {
@@ -113,20 +210,34 @@ export default function GameCanvas({
   const handleHatChange = useCallback((newHat) => {
     if (!myPlayer || !connected) return
     
-    // Atualiza localmente
     updatePlayerHat(myPlayer.id, newHat)
     
-    // Envia para o servidor
     sendMessage({
       type: 'updateHat',
       hat: newHat
     })
     
-    // Callback para o componente pai
     if (onHatChange) {
       onHatChange(newHat)
     }
   }, [myPlayer, connected, sendMessage, updatePlayerHat, onHatChange])
+
+  // === SALAS: Função para trocar de sala ===
+  const changeRoom = useCallback((targetRoom, spawnX, spawnY) => {
+    if (!myPlayer || !connected) return
+    
+    console.log(`🚪 Trocando para sala: ${targetRoom}`)
+    
+    // Cancela movimento imediatamente
+    targetPositionRef.current = null
+    
+    sendMessage({
+      type: 'changeRoom',
+      room: targetRoom,
+      x: spawnX,
+      y: spawnY
+    })
+  }, [myPlayer, connected, sendMessage])
 
   // Expõe função de trocar chapéu globalmente
   useEffect(() => {
@@ -158,7 +269,7 @@ export default function GameCanvas({
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
     
-    // Define a posição alvo
+    // Define a posição alvo (sem verificar portais aqui)
     targetPositionRef.current = { x, y }
   }, [myPlayer, connected])
 
@@ -197,6 +308,25 @@ export default function GameCanvas({
       const clampedX = Math.max(PLAYER_SIZE / 2, Math.min(800 - PLAYER_SIZE / 2, newX))
       const clampedY = Math.max(PLAYER_SIZE / 2, Math.min(600 - PLAYER_SIZE / 2, newY))
       
+      // === SALAS: Verifica colisão com portais da sala atual ===
+      for (const [portalName, portal] of Object.entries(PORTALS)) {
+        // Só verifica portais da sala atual
+        if (portal.visibleIn !== currentRoom) continue
+        
+        // Verifica se o CENTRO do jogador está colidindo com o portal (área menor)
+        const playerCenterX = clampedX
+        const playerCenterY = clampedY
+        
+        if (playerCenterX >= portal.x && 
+            playerCenterX <= portal.x + portal.width &&
+            playerCenterY >= portal.y && 
+            playerCenterY <= portal.y + portal.height) {
+          console.log(`🚪 Colidiu com portal: ${portalName} -> ${portal.targetRoom}`)
+          changeRoom(portal.targetRoom, portal.spawnX, portal.spawnY)
+          return // Para tudo e sai do loop
+        }
+      }
+      
       // Atualiza posição local INSTANTANEAMENTE
       setMyPlayerPosition(clampedX, clampedY)
       
@@ -210,7 +340,7 @@ export default function GameCanvas({
 
     const interval = setInterval(handleMovement, 1000 / 60) // 60 FPS visual local
     return () => clearInterval(interval)
-  }, [myPlayer, connected, sendMessage, setMyPlayerPosition])
+  }, [myPlayer, connected, sendMessage, setMyPlayerPosition, currentRoom, changeRoom])
 
   // Renderização com interpolação suave para outros jogadores
   useEffect(() => {
@@ -221,7 +351,149 @@ export default function GameCanvas({
     const displayPositions = new Map() // Posições renderizadas (interpoladas)
 
     const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // === SALAS: Desenha background estilizado da sala atual ===
+      // Se existir uma imagem para a sala atual, desenha essa imagem e NÃO aplica
+      // decorativos/fallbacks — mantém a lógica simples e escalável para múltiplas salas.
+      if (roomImages[currentRoom]) {
+        ctx.drawImage(roomImages[currentRoom], 0, 0, canvas.width, canvas.height)
+      } else {
+        if (currentRoom === 'central') {
+          // Vila Central - fallback gradient + decor
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+          gradient.addColorStop(0, '#87CEEB') // Céu azul
+          gradient.addColorStop(0.4, '#A8E6CF') // Verde claro
+          gradient.addColorStop(1, '#78C878') // Verde escuro
+          ctx.fillStyle = gradient
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+          // Desenha caminho de pedras
+          ctx.fillStyle = 'rgba(160, 160, 160, 0.4)'
+          for (let i = 0; i < 15; i++) {
+            const x = 200 + i * 30
+            const y = 350 + Math.sin(i * 0.5) * 20
+            ctx.beginPath()
+            ctx.ellipse(x, y, 25, 15, 0, 0, Math.PI * 2)
+            ctx.fill()
+          }
+
+          // Árvores decorativas
+          for (let i = 0; i < 5; i++) {
+            const x = 100 + i * 150
+            const y = 150
+            ctx.fillStyle = 'rgba(101, 67, 33, 0.5)' // Tronco
+            ctx.fillRect(x - 5, y, 10, 30)
+            ctx.fillStyle = 'rgba(34, 139, 34, 0.5)' // Copa
+            ctx.beginPath()
+            ctx.arc(x, y - 10, 20, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        } else if (currentRoom === 'leftRoom') {
+          // Lago - Azul com reflexos
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+          gradient.addColorStop(0, '#87CEEB') // Céu
+          gradient.addColorStop(0.3, '#B0E0E6') // Azul claro
+          gradient.addColorStop(1, '#4682B4') // Azul escuro (água)
+          ctx.fillStyle = gradient
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+          // Ondas no lago
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+          ctx.lineWidth = 2
+          for (let i = 0; i < 5; i++) {
+            ctx.beginPath()
+            ctx.moveTo(0, 400 + i * 30)
+            for (let x = 0; x < canvas.width; x += 20) {
+              ctx.lineTo(x, 400 + i * 30 + Math.sin(x * 0.1 + i) * 5)
+            }
+            ctx.stroke()
+          }
+
+          // Árvores ao fundo
+          for (let i = 0; i < 6; i++) {
+            const x = 50 + i * 130
+            const y = 100
+            ctx.fillStyle = 'rgba(34, 139, 34, 0.4)'
+            ctx.beginPath()
+            ctx.arc(x, y, 30, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        } else if (currentRoom === 'rightRoom') {
+          // Clareira - Bege/dourado com portão
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+          gradient.addColorStop(0, '#87CEEB') // Céu
+          gradient.addColorStop(0.4, '#FFE4B5') // Bege
+          gradient.addColorStop(1, '#DEB887') // Marrom claro
+          ctx.fillStyle = gradient
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+          // Portão antigo no fundo
+          ctx.fillStyle = 'rgba(101, 67, 33, 0.5)' // Madeira
+          ctx.fillRect(300, 120, 15, 80)
+          ctx.fillRect(485, 120, 15, 80)
+          ctx.fillRect(300, 130, 200, 10)
+          ctx.fillRect(300, 180, 200, 10)
+
+          // Arbustos
+          for (let i = 0; i < 4; i++) {
+            const x = 100 + i * 180
+            const y = 500
+            ctx.fillStyle = 'rgba(107, 142, 35, 0.5)'
+            ctx.beginPath()
+            ctx.ellipse(x, y, 40, 25, 0, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+      }
+      
+      // === SALAS: Desenha portais (setas) da sala atual ===
+      Object.entries(PORTALS).forEach(([name, portal]) => {
+        // Só desenha portais da sala atual
+        if (portal.visibleIn !== currentRoom) return
+        
+        const colorMap = {
+          blue: { fill: 'rgba(100, 100, 255, 0.3)', stroke: 'rgba(0, 0, 255, 0.7)', text: 'rgba(0, 0, 255, 0.8)' },
+          orange: { fill: 'rgba(255, 200, 100, 0.3)', stroke: 'rgba(255, 150, 0, 0.7)', text: 'rgba(255, 150, 0, 0.8)' },
+          green: { fill: 'rgba(100, 255, 100, 0.3)', stroke: 'rgba(0, 200, 0, 0.7)', text: 'rgba(0, 200, 0, 0.8)' }
+        }
+        const colors = colorMap[portal.color] || colorMap.blue
+        
+        ctx.fillStyle = colors.fill
+        ctx.strokeStyle = colors.stroke
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        
+        // Desenha seta para esquerda ou direita
+        if (portal.x < 100) { // Seta esquerda
+          ctx.moveTo(portal.x + portal.width, portal.y)
+          ctx.lineTo(portal.x, portal.y + portal.height / 2)
+          ctx.lineTo(portal.x + portal.width, portal.y + portal.height)
+        } else { // Seta direita
+          ctx.moveTo(portal.x, portal.y)
+          ctx.lineTo(portal.x + portal.width, portal.y + portal.height / 2)
+          ctx.lineTo(portal.x, portal.y + portal.height)
+        }
+        
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        
+        // Texto indicativo
+        ctx.fillStyle = colors.text
+        ctx.font = 'bold 12px Arial'
+        ctx.textAlign = 'center'
+        ctx.fillText(portal.label, portal.x + portal.width / 2, portal.y + portal.height + 15)
+      })
+      
+      // === SALAS: Título da sala ===
+      const roomNames = {
+        central: '🏘️ Vila Central',
+        leftRoom: '🌊 Lago Azul',
+        rightRoom: '🌳 Clareira Dourada'
+      }
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.font = 'bold 16px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText(roomNames[currentRoom] || currentRoom, canvas.width / 2, 25)
       
       // Desenha indicador de alvo se houver
       if (targetPositionRef.current && myPlayer) {
@@ -338,11 +610,13 @@ export default function GameCanvas({
           ctx.fillText(player.name, displayX, displayY + PLAYER_SIZE / 2 + 5)
         }
 
-        // Mensagem do chat
-        if (player.message && (now - player.messageTime < MESSAGE_DURATION)) {
+        // Mensagem do chat (usando mensagens locais para evitar tocar no estado global)
+        const chatEntry = chatMessagesRef.current.get(player.id)
+        if (chatEntry && (now - chatEntry.timestamp < MESSAGE_DURATION)) {
+          const msg = chatEntry.message
           ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
           ctx.font = '12px Arial'
-          const textWidth = ctx.measureText(player.message).width
+          const textWidth = ctx.measureText(msg).width
           const padding = 8
           const bubbleWidth = textWidth + padding * 2
           const bubbleHeight = 24
@@ -350,7 +624,12 @@ export default function GameCanvas({
           const bubbleY = displayY - PLAYER_SIZE / 2 - bubbleHeight - 10
 
           ctx.beginPath()
-          ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 12)
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 12)
+          } else {
+            // Fallback simples para navegadores sem roundRect
+            ctx.rect(bubbleX, bubbleY, bubbleWidth, bubbleHeight)
+          }
           ctx.fill()
           ctx.strokeStyle = '#ddd'
           ctx.lineWidth = 2
@@ -359,7 +638,7 @@ export default function GameCanvas({
           ctx.fillStyle = '#333'
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(player.message, displayX, bubbleY + bubbleHeight / 2)
+          ctx.fillText(msg, displayX, bubbleY + bubbleHeight / 2)
         }
       })
 
@@ -373,7 +652,7 @@ export default function GameCanvas({
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [players, myPlayer])
+  }, [players, myPlayer, currentRoom]) // === SALAS: Adiciona currentRoom às dependências ===
 
   return (
     <>

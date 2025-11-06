@@ -7,16 +7,30 @@ const WebSocket = require('ws');
 // Porta do servidor (Render/Railway definem via variável de ambiente)
 const PORT = process.env.PORT || 3001;
 
-// Armazena todos os jogadores conectados
-const players = new Map();
+// === SISTEMA DE SALAS: Estrutura de salas conectadas ===
+const rooms = {
+  central: new Map(),    // Sala central (vila)
+  leftRoom: new Map(),   // Sala da esquerda (lago)
+  rightRoom: new Map()   // Sala da direita (clareira)
+}
+
+// Armazena qual sala cada jogador está
+const playerRooms = new Map() // playerId => roomName
 
 // Cria servidor HTTP básico (apenas para health check)
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {
+    // Contabiliza jogadores em todas as salas
+    const totalPlayers = Object.values(rooms).reduce((sum, room) => sum + room.size, 0);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ 
       status: 'ok', 
-      players: players.size,
+      players: totalPlayers,
+      rooms: {
+        central: rooms.central.size,
+        leftRoom: rooms.leftRoom.size,
+        rightRoom: rooms.rightRoom.size
+      },
       uptime: process.uptime()
     }));
   } else {
@@ -42,7 +56,25 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-// Função para enviar mensagem a todos os clientes
+// Função para enviar mensagem a todos os clientes de uma sala específica
+function broadcastToRoom(roomName, message, excludeId = null) {
+  const data = JSON.stringify(message);
+  const roomPlayers = rooms[roomName];
+  if (!roomPlayers) return;
+  
+  roomPlayers.forEach((player, playerId) => {
+    if (excludeId && playerId === excludeId) return;
+    
+    // Encontra o WebSocket correspondente
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN && client.playerId === playerId) {
+        client.send(data);
+      }
+    });
+  });
+}
+
+// Função para enviar mensagem a todos os clientes (todas as salas)
 function broadcast(message) {
   const data = JSON.stringify(message);
   wss.clients.forEach(client => {
@@ -60,14 +92,18 @@ wss.on('connection', (ws) => {
   const playerId = generateId();
   const playerData = {
     id: playerId,
-    x: Math.floor(Math.random() * 700) + 50, // Posição inicial aleatória
-    y: Math.floor(Math.random() * 500) + 50,
+    x: 400, // === SALAS: Posição inicial no centro da sala central ===
+    y: 300,
     color: getRandomColor(),
     name: '',
-    hat: 'none', // === CUSTOMIZAÇÃO: Chapéu padrão ===
+    hat: 'none',
     message: '',
     messageTime: 0
   };
+
+  // === SALAS: Jogador começa na sala central ===
+  const initialRoom = 'central';
+  playerRooms.set(playerId, initialRoom);
 
   // Armazena o ID no objeto WebSocket
   ws.playerId = playerId;
@@ -85,14 +121,16 @@ wss.on('connection', (ws) => {
     color: playerData.color,
     x: playerData.x,
     y: playerData.y,
-    hat: playerData.hat // === CUSTOMIZAÇÃO: Envia chapéu inicial ===
+    hat: playerData.hat,
+    room: initialRoom // === SALAS: Informa sala inicial ===
   }));
 
-  // Envia para o novo jogador a lista de jogadores existentes
-  const existingPlayers = Array.from(players.values());
+  // Envia para o novo jogador a lista de jogadores da sala atual
+  const roomPlayers = Array.from(rooms[initialRoom].values());
   ws.send(JSON.stringify({
     type: 'players',
-    players: existingPlayers
+    players: roomPlayers,
+    room: initialRoom // === SALAS: Sala dos jogadores ===
   }));
 
   // Evento: Mensagem recebida do cliente
@@ -105,28 +143,32 @@ wss.on('connection', (ws) => {
         case 'join':
           // === CUSTOMIZAÇÃO: Jogador entra com nome, cor e chapéu ===
           playerData.name = message.name;
-          playerData.color = message.color || playerData.color; // Usa cor escolhida ou padrão
-          playerData.hat = message.hat || 'none'; // Usa chapéu escolhido ou nenhum
-          players.set(playerId, playerData);
+          playerData.color = message.color || playerData.color;
+          playerData.hat = message.hat || 'none';
+          
+          // === SALAS: Adiciona jogador na sala inicial ===
+          const currentRoom = playerRooms.get(playerId) || 'central';
+          rooms[currentRoom].set(playerId, playerData);
 
-          console.log(`✅ ${message.name} entrou no jogo (Total: ${players.size})`);
+          console.log(`✅ ${message.name} entrou na sala ${currentRoom} (Total na sala: ${rooms[currentRoom].size})`);
 
-          // Notifica todos sobre o novo jogador
-          broadcast({
+          // Notifica todos da sala sobre o novo jogador
+          broadcastToRoom(currentRoom, {
             type: 'playerJoined',
             player: playerData
           });
           break;
 
         case 'move':
-          // Atualiza posição do jogador
-          if (players.has(playerId)) {
+          // === SALAS: Atualiza posição do jogador na sala atual ===
+          const playerRoom = playerRooms.get(playerId);
+          if (playerRoom && rooms[playerRoom].has(playerId)) {
             playerData.x = message.x;
             playerData.y = message.y;
-            players.set(playerId, playerData);
+            rooms[playerRoom].set(playerId, playerData);
 
-            // Transmite movimento para todos
-            broadcast({
+            // Transmite movimento apenas para jogadores da mesma sala
+            broadcastToRoom(playerRoom, {
               type: 'playerMoved',
               id: playerId,
               x: message.x,
@@ -135,11 +177,58 @@ wss.on('connection', (ws) => {
           }
           break;
 
+        case 'changeRoom':
+          // === SALAS: Novo evento para trocar de sala ===
+          const fromRoom = playerRooms.get(playerId);
+          const toRoom = message.room;
+          
+          if (!fromRoom || !toRoom || !rooms[toRoom]) {
+            console.error(`❌ Sala inválida: ${toRoom}`);
+            break;
+          }
+          
+          // Remove da sala anterior
+          rooms[fromRoom].delete(playerId);
+          
+          // Notifica jogadores da sala anterior
+          broadcastToRoom(fromRoom, {
+            type: 'playerLeft',
+            id: playerId
+          });
+          
+          // Atualiza posição inicial na nova sala
+          playerData.x = message.x || 400;
+          playerData.y = message.y || 300;
+          
+          // Adiciona na nova sala
+          rooms[toRoom].set(playerId, playerData);
+          playerRooms.set(playerId, toRoom);
+          
+          console.log(`🚪 ${playerData.name} mudou de ${fromRoom} para ${toRoom}`);
+          
+          // Envia confirmação e jogadores da nova sala
+          const newRoomPlayers = Array.from(rooms[toRoom].values()).filter(p => p.id !== playerId);
+          ws.send(JSON.stringify({
+            type: 'roomChanged',
+            room: toRoom,
+            players: newRoomPlayers,
+            x: playerData.x,
+            y: playerData.y
+          }));
+          
+          // Notifica jogadores da nova sala
+          broadcastToRoom(toRoom, {
+            type: 'playerJoined',
+            player: playerData
+          }, playerId);
+          break;
+
         case 'chat':
-          // Transmite mensagem do chat
-          if (players.has(playerId)) {
-            console.log(`💬 ${playerData.name}: ${message.message}`);
-            broadcast({
+          // === SALAS: Chat apenas na sala atual ===
+          const chatRoom = playerRooms.get(playerId);
+          if (chatRoom && rooms[chatRoom].has(playerId)) {
+            console.log(`💬 [${chatRoom}] ${playerData.name}: ${message.message}`);
+            broadcastToRoom(chatRoom, {
               type: 'chat',
               id: playerId,
               message: message.message,
@@ -156,14 +245,15 @@ wss.on('connection', (ws) => {
 
         case 'updateHat':
           // === CUSTOMIZAÇÃO: Atualiza chapéu do jogador ===
-          if (players.has(playerId)) {
+          const hatRoom = playerRooms.get(playerId);
+          if (hatRoom && rooms[hatRoom].has(playerId)) {
             playerData.hat = message.hat;
-            players.set(playerId, playerData);
+            rooms[hatRoom].set(playerId, playerData);
 
             console.log(`🎩 ${playerData.name} trocou para chapéu: ${message.hat}`);
 
-            // Notifica todos sobre a mudança
-            broadcast({
+            // Notifica apenas jogadores da mesma sala
+            broadcastToRoom(hatRoom, {
               type: 'playerUpdated',
               id: playerId,
               hat: message.hat
@@ -179,16 +269,21 @@ wss.on('connection', (ws) => {
   // Evento: Cliente desconectado
   ws.on('close', () => {
     const playerName = playerData.name || 'Jogador';
-    console.log(`👋 ${playerName} desconectou (Total: ${players.size - 1})`);
+    const playerRoom = playerRooms.get(playerId);
     
-    // Remove jogador da lista
-    players.delete(playerId);
+    if (playerRoom) {
+      console.log(`👋 ${playerName} desconectou da sala ${playerRoom} (Total na sala: ${rooms[playerRoom].size - 1})`);
+      
+      // Remove jogador da sala
+      rooms[playerRoom].delete(playerId);
+      playerRooms.delete(playerId);
 
-    // Notifica todos sobre a desconexão
-    broadcast({
-      type: 'playerLeft',
-      id: playerId
-    });
+      // Notifica apenas jogadores da mesma sala
+      broadcastToRoom(playerRoom, {
+        type: 'playerLeft',
+        id: playerId
+      });
+    }
   });
 
   // Evento: Erro na conexão
@@ -204,14 +299,18 @@ const keepAliveInterval = setInterval(() => {
       // Cliente não respondeu ao ping - força desconexão
       console.log('💀 Cliente inativo detectado - forçando desconexão');
       const playerId = ws.playerId;
-      if (playerId && players.has(playerId)) {
-        const playerName = players.get(playerId).name || 'Jogador';
-        console.log(`👋 ${playerName} removido por inatividade`);
-        players.delete(playerId);
-        broadcast({
-          type: 'playerLeft',
-          id: playerId
-        });
+      if (playerId) {
+        const playerRoom = playerRooms.get(playerId);
+        if (playerRoom && rooms[playerRoom].has(playerId)) {
+          const playerName = rooms[playerRoom].get(playerId).name || 'Jogador';
+          console.log(`👋 ${playerName} removido por inatividade da sala ${playerRoom}`);
+          rooms[playerRoom].delete(playerId);
+          playerRooms.delete(playerId);
+          broadcastToRoom(playerRoom, {
+            type: 'playerLeft',
+            id: playerId
+          });
+        }
       }
       return ws.terminate();
     }

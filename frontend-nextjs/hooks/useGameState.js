@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 export default function useGameState() {
   const [myPlayer, setMyPlayer] = useState(null)
   const [players, setPlayers] = useState(new Map())
+  const [currentRoom, setCurrentRoom] = useState('central') // === SALAS: Estado da sala atual ===
   
   // === FIX: useRef para sempre ter o valor atualizado (evita stale closure) ===
   const myPlayerRef = useRef(null)
@@ -12,18 +13,19 @@ export default function useGameState() {
     myPlayerRef.current = myPlayer
   }, [myPlayer])
 
-  const initPlayer = useCallback((id, x, y, color, name, hat = 'none') => {
+  const initPlayer = useCallback((id, x, y, color, name, hat = 'none', room = 'central') => {
     const player = {
       id,
       x,
       y,
       color,
       name,
-      hat, // === CUSTOMIZAÇÃO: Adiciona chapéu ===
+      hat,
       message: '',
       messageTime: 0
     }
     setMyPlayer(player)
+    setCurrentRoom(room) // === SALAS: Define sala inicial ===
     setPlayers(prev => new Map(prev).set(id, player))
   }, [])
 
@@ -34,7 +36,7 @@ export default function useGameState() {
         if (!newPlayers.has(player.id)) {
           newPlayers.set(player.id, {
             ...player,
-            hat: player.hat || 'none', // === CUSTOMIZAÇÃO: Garante que tem chapéu ===
+            hat: player.hat || 'none',
             message: '',
             messageTime: 0
           })
@@ -44,12 +46,24 @@ export default function useGameState() {
     })
   }, [])
 
+  // === SALAS: Nova função para limpar jogadores e resetar sala ===
+  const clearPlayers = useCallback(() => {
+    setPlayers(prev => {
+      const newPlayers = new Map()
+      // Mantém apenas o próprio jogador
+      if (myPlayerRef.current) {
+        newPlayers.set(myPlayerRef.current.id, myPlayerRef.current)
+      }
+      return newPlayers
+    })
+  }, [])
+
   const addPlayer = useCallback((player) => {
     setPlayers(prev => {
       const newPlayers = new Map(prev)
       newPlayers.set(player.id, {
         ...player,
-        hat: player.hat || 'none', // === CUSTOMIZAÇÃO: Garante que tem chapéu ===
+        hat: player.hat || 'none',
         message: '',
         messageTime: 0
       })
@@ -79,13 +93,17 @@ export default function useGameState() {
   }, []) // <= Removido myPlayer das dependências!
 
   const addChatMessage = useCallback((id, message, timestamp) => {
+    console.log('💬 addChatMessage chamado:', { id, message, timestamp })
     setPlayers(prev => {
       const player = prev.get(id)
+      console.log('💬 Jogador encontrado:', player)
       if (player) {
         const newPlayers = new Map(prev)
         newPlayers.set(id, { ...player, message, messageTime: timestamp })
+        console.log('💬 Atualizado com mensagem')
         return newPlayers
       }
+      console.log('💬 Jogador não encontrado!')
       return prev
     })
   }, [])
@@ -135,8 +153,11 @@ export default function useGameState() {
   return {
     myPlayer,
     players,
+    currentRoom, // === SALAS: Exporta sala atual ===
+    setCurrentRoom, // === SALAS: Função para mudar sala ===
     initPlayer,
     updatePlayers,
+    clearPlayers, // === SALAS: Nova função ===
     addPlayer,
     movePlayer,
     addChatMessage,

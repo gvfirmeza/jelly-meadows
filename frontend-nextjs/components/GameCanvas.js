@@ -46,8 +46,8 @@ const ROOM_BACKGROUNDS = {
 // Using the provided welcome image for the central room
 const ROOM_BACKGROUND_IMAGES = {
   central: '/rooms/welcome_room.png',
-  leftRoom: null,
-  rightRoom: null
+  leftRoom: '/rooms/lake_room.png',
+  rightRoom: '/rooms/clearing_room.png'
 }
 
 // Mapeamento de IDs para caminhos de imagem
@@ -352,13 +352,21 @@ export default function GameCanvas({
 
     const render = () => {
       // === SALAS: Desenha background estilizado da sala atual ===
-      // Se existir uma imagem para a sala atual, desenha essa imagem e NÃO aplica
-      // decorativos/fallbacks — mantém a lógica simples e escalável para múltiplas salas.
-      if (roomImages[currentRoom]) {
-        ctx.drawImage(roomImages[currentRoom], 0, 0, canvas.width, canvas.height)
+      // Se há uma imagem configurada para esta sala, a usamos quando ela estiver
+      // carregada. Se a imagem ainda não carregou, desenhamos um fundo neutro
+      // simples (sem os decorativos vetoriais) para evitar o fallback anterior.
+      const expectedRoomImage = ROOM_BACKGROUND_IMAGES[currentRoom]
+      if (expectedRoomImage) {
+        if (roomImages[currentRoom]) {
+          ctx.drawImage(roomImages[currentRoom], 0, 0, canvas.width, canvas.height)
+        } else {
+          // imagem esperada, mas ainda não carregada: fundo neutro simples
+          ctx.fillStyle = '#111'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+        }
       } else {
+        // Sem imagem configurada: usa os fallbacks decorativos por sala
         if (currentRoom === 'central') {
-          // Vila Central - fallback gradient + decor
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
           gradient.addColorStop(0, '#87CEEB') // Céu azul
           gradient.addColorStop(0.4, '#A8E6CF') // Verde claro
@@ -388,11 +396,10 @@ export default function GameCanvas({
             ctx.fill()
           }
         } else if (currentRoom === 'leftRoom') {
-          // Lago - Azul com reflexos
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
-          gradient.addColorStop(0, '#87CEEB') // Céu
-          gradient.addColorStop(0.3, '#B0E0E6') // Azul claro
-          gradient.addColorStop(1, '#4682B4') // Azul escuro (água)
+          gradient.addColorStop(0, '#87CEEB')
+          gradient.addColorStop(0.3, '#B0E0E6')
+          gradient.addColorStop(1, '#4682B4')
           ctx.fillStyle = gradient
           ctx.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -408,7 +415,6 @@ export default function GameCanvas({
             ctx.stroke()
           }
 
-          // Árvores ao fundo
           for (let i = 0; i < 6; i++) {
             const x = 50 + i * 130
             const y = 100
@@ -418,22 +424,19 @@ export default function GameCanvas({
             ctx.fill()
           }
         } else if (currentRoom === 'rightRoom') {
-          // Clareira - Bege/dourado com portão
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
-          gradient.addColorStop(0, '#87CEEB') // Céu
-          gradient.addColorStop(0.4, '#FFE4B5') // Bege
-          gradient.addColorStop(1, '#DEB887') // Marrom claro
+          gradient.addColorStop(0, '#87CEEB')
+          gradient.addColorStop(0.4, '#FFE4B5')
+          gradient.addColorStop(1, '#DEB887')
           ctx.fillStyle = gradient
           ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-          // Portão antigo no fundo
-          ctx.fillStyle = 'rgba(101, 67, 33, 0.5)' // Madeira
+          ctx.fillStyle = 'rgba(101, 67, 33, 0.5)'
           ctx.fillRect(300, 120, 15, 80)
           ctx.fillRect(485, 120, 15, 80)
           ctx.fillRect(300, 130, 200, 10)
           ctx.fillRect(300, 180, 200, 10)
 
-          // Arbustos
           for (let i = 0; i < 4; i++) {
             const x = 100 + i * 180
             const y = 500
@@ -443,25 +446,19 @@ export default function GameCanvas({
             ctx.fill()
           }
         }
-      }
+  }
       
       // === SALAS: Desenha portais (setas) da sala atual ===
       Object.entries(PORTALS).forEach(([name, portal]) => {
         // Só desenha portais da sala atual
         if (portal.visibleIn !== currentRoom) return
-        
-        const colorMap = {
-          blue: { fill: 'rgba(100, 100, 255, 0.3)', stroke: 'rgba(0, 0, 255, 0.7)', text: 'rgba(0, 0, 255, 0.8)' },
-          orange: { fill: 'rgba(255, 200, 100, 0.3)', stroke: 'rgba(255, 150, 0, 0.7)', text: 'rgba(255, 150, 0, 0.8)' },
-          green: { fill: 'rgba(100, 255, 100, 0.3)', stroke: 'rgba(0, 200, 0, 0.7)', text: 'rgba(0, 200, 0, 0.8)' }
-        }
-        const colors = colorMap[portal.color] || colorMap.blue
-        
-        ctx.fillStyle = colors.fill
-        ctx.strokeStyle = colors.stroke
+
+        // Portais neutros (sem cor nem texto)
+        ctx.fillStyle = 'rgba(200,200,200,0.5)'
+        ctx.strokeStyle = 'rgba(120,120,120,0.8)'
         ctx.lineWidth = 3
         ctx.beginPath()
-        
+
         // Desenha seta para esquerda ou direita
         if (portal.x < 100) { // Seta esquerda
           ctx.moveTo(portal.x + portal.width, portal.y)
@@ -472,28 +469,13 @@ export default function GameCanvas({
           ctx.lineTo(portal.x + portal.width, portal.y + portal.height / 2)
           ctx.lineTo(portal.x, portal.y + portal.height)
         }
-        
+
         ctx.closePath()
         ctx.fill()
         ctx.stroke()
-        
-        // Texto indicativo
-        ctx.fillStyle = colors.text
-        ctx.font = 'bold 12px Arial'
-        ctx.textAlign = 'center'
-        ctx.fillText(portal.label, portal.x + portal.width / 2, portal.y + portal.height + 15)
       })
       
-      // === SALAS: Título da sala ===
-      const roomNames = {
-        central: '🏘️ Vila Central',
-        leftRoom: '🌊 Lago Azul',
-        rightRoom: '🌳 Clareira Dourada'
-      }
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.font = 'bold 16px Arial'
-      ctx.textAlign = 'center'
-      ctx.fillText(roomNames[currentRoom] || currentRoom, canvas.width / 2, 25)
+      // (removed room title display as requested)
       
       // Desenha indicador de alvo se houver
       if (targetPositionRef.current && myPlayer) {

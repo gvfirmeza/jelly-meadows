@@ -43,6 +43,13 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.spacer {
+  width: 250px;
+  flex-shrink: 0;
 }
 
 /* === CUSTOMIZAÇÃO: Container do seletor de skins === */
@@ -79,6 +86,10 @@
   .sidePanel {
     width: 100%;
     align-items: center;
+  }
+
+  .spacer {
+    display: none;
   }
 
   .skinSelectorContainer {

@@ -67,6 +67,8 @@ export default function Home() {
           </div>
           
           <div className={styles.contentArea}>
+            <div className={styles.spacer}></div>
+
             <div className={styles.gameContainer}>
               <GameCanvas 
                 onConnected={setConnected}

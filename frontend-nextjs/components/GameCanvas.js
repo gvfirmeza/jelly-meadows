@@ -313,7 +313,11 @@ export default function GameCanvas({
       
       // === COLISÃO: Parede invisível no horizonte ===
       // Impede que o jogador ande pelo céu/copa das árvores
-      const HORIZON_Y = 260; // Ajuste fino para a linha do horizonte
+      let HORIZON_Y = 260; // Padrão
+      if (currentRoom === 'leftRoom') {
+        HORIZON_Y = 200; // Sobe a colisão um pouco mais pro fundo do mapa do lago
+      }
+      
       if (clampedY < HORIZON_Y) {
         clampedY = HORIZON_Y;
       }

@@ -57,16 +57,16 @@ export default function Home() {
         <Lobby onJoinGame={handleJoinGame} />
       ) : (
         <main className={styles.main}>
-          <div className={styles.topBar}>
-            <PlayerInfo 
-              playerName={playerName} 
-              playerCount={playerCount}
-              playerColor={playerColor}
-            />
-            <Controls />
-          </div>
-          
           <div className={styles.gameContainer}>
+            <div className={styles.topBar}>
+              <PlayerInfo 
+                playerName={playerName} 
+                playerCount={playerCount}
+                playerColor={playerColor}
+              />
+              <Controls />
+            </div>
+
             <GameCanvas 
               onConnected={setConnected}
               onPlayerNameChange={setPlayerName}

@@ -66,7 +66,8 @@ export default function GameCanvas({
   onPlayerCountChange, 
   onPlayerColorChange,
   playerCustomization, // === CUSTOMIZAÇÃO: Recebe dados do lobby ===
-  onHatChange // === CUSTOMIZAÇÃO: Callback para mudança de chapéu ===
+  onHatChange, // === CUSTOMIZAÇÃO: Callback para mudança de chapéu ===
+  onRoomChange // callback to notify parent about room changes
 }) {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
@@ -147,6 +148,7 @@ export default function GameCanvas({
       onPlayerNameChange(name)
       onPlayerColorChange(color)
       onConnected(true)
+      if (onRoomChange) onRoomChange(data.room || 'central')
       
       // Envia customizações completas para o servidor
       sendMessage({ 
@@ -190,6 +192,7 @@ export default function GameCanvas({
     onRoomChanged: (data) => {
       console.log(`🚪 Mudou para sala: ${data.room}`)
       setCurrentRoom(data.room)
+      if (onRoomChange) onRoomChange(data.room)
       clearPlayers() // Remove jogadores da sala antiga
       updatePlayers(data.players) // Adiciona jogadores da nova sala
       setMyPlayerPosition(data.x, data.y) // Atualiza posição do spawn

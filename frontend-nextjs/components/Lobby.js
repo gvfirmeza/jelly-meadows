@@ -9,46 +9,10 @@ const AVAILABLE_COLORS = [
   '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'
 ]
 
-// Skins/chapéus disponíveis com imagens
-const AVAILABLE_HATS = [
-  { id: 'none', name: 'Sem chapéu', image: null },
-  { id: 'cap', name: 'Boné', image: '/hats/cap.png' },
-  { id: 'sunhat', name: 'Chapéu de Palha', image: '/hats/hat.png' },
-  { id: 'party', name: 'Sombrero', image: '/hats/mexican-hat.png' },
-  { id: 'graduate', name: 'Chapéu de Praia', image: '/hats/pamela-hat.png' },
-  { id: 'wizard', name: 'Mago', image: '/hats/wizard-hat.png' },
-  { id: 'viking', name: 'Cowboy', image: '/hats/cowboy-hat.png' }
-]
-
-// Componente para cada botão de chapéu com imagem
-function HatButtonLobby({ hat, isSelected, onClick }) {
-  return (
-    <button
-      className={`${styles.hatButton} ${isSelected ? styles.hatButtonSelected : ''}`}
-      onClick={onClick}
-      title={hat.name}
-    >
-      {hat.image ? (
-        <div className={styles.hatImageWrapper}>
-          <Image 
-            src={hat.image} 
-            alt={hat.name}
-            width={50}
-            height={50}
-            className={styles.hatImage}
-          />
-        </div>
-      ) : (
-        <span className={styles.noHat}>🚫</span>
-      )}
-    </button>
-  )
-}
 
 export default function Lobby({ onJoinGame }) {
   const [playerName, setPlayerName] = useState('')
   const [selectedColor, setSelectedColor] = useState(AVAILABLE_COLORS[0])
-  const [selectedHat, setSelectedHat] = useState('none')
   const [error, setError] = useState('')
   const previewCanvasRef = useRef(null)
 
@@ -116,28 +80,7 @@ export default function Lobby({ onJoinGame }) {
     ctx.bezierCurveTo(centerX - 5, bottom, left, bottom, left, bottom - 5)
     ctx.bezierCurveTo(left, centerY, left, top, centerX, top)
     ctx.stroke()
-
-    // Desenha o chapéu se selecionado (como imagem)
-    if (selectedHat && selectedHat !== 'none') {
-      const hatData = AVAILABLE_HATS.find(h => h.id === selectedHat)
-      if (hatData && hatData.image) {
-        const img = new window.Image()
-        img.src = hatData.image
-        img.onload = () => {
-          const hatSize = 45
-          // Offset específico: wizard mais próximo, resto padrão
-          const hatOffset = (selectedHat === 'wizard') ? 14 : 18
-          ctx.drawImage(
-            img, 
-            centerX - hatSize / 2, 
-            top - hatSize + hatOffset, 
-            hatSize, 
-            hatSize
-          )
-        }
-      }
-    }
-  }, [selectedColor, selectedHat])
+  }, [selectedColor])
 
   const handleJoin = () => {
     // Validação do nome
@@ -159,8 +102,7 @@ export default function Lobby({ onJoinGame }) {
     // Envia as customizações para o componente pai
     onJoinGame({
       name: playerName.trim(),
-      color: selectedColor,
-      hat: selectedHat
+      color: selectedColor
     })
   }
 
@@ -214,20 +156,6 @@ export default function Lobby({ onJoinGame }) {
           </div>
         </div>
 
-        {/* Seletor de Chapéu */}
-        <div className={styles.section}>
-          <label className={styles.label}>Chapéu / Skin</label>
-          <div className={styles.hatGrid}>
-            {AVAILABLE_HATS.map((hat) => (
-              <HatButtonLobby
-                key={hat.id}
-                hat={hat}
-                isSelected={selectedHat === hat.id}
-                onClick={() => setSelectedHat(hat.id)}
-              />
-            ))}
-          </div>
-        </div>
 
         {/* Preview do Personagem */}
         <div className={styles.section}>

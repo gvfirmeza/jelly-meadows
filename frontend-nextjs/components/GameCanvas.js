@@ -301,15 +301,22 @@ export default function GameCanvas({
         return
       }
       
-      // Movimento mais rápido e direto (sem interpolação pesada)
-      const speed = Math.min(distance * 0.2, 8) // Velocidade adaptativa, max 8px/frame
+      // Velocidade mais suave e natural (antes era max 8)
+      const speed = Math.min(distance * 0.1, 4) // Velocidade adaptativa, max 4px/frame
       const angle = Math.atan2(dy, dx)
       const newX = currentX + Math.cos(angle) * speed
       const newY = currentY + Math.sin(angle) * speed
       
       // Garante que não sai do canvas
       const clampedX = Math.max(PLAYER_SIZE / 2, Math.min(800 - PLAYER_SIZE / 2, newX))
-      const clampedY = Math.max(PLAYER_SIZE / 2, Math.min(600 - PLAYER_SIZE / 2, newY))
+      let clampedY = Math.max(PLAYER_SIZE / 2, Math.min(600 - PLAYER_SIZE / 2, newY))
+      
+      // === COLISÃO: Parede invisível no horizonte ===
+      // Impede que o jogador ande pelo céu/copa das árvores
+      const HORIZON_Y = 260; // Ajuste fino para a linha do horizonte
+      if (clampedY < HORIZON_Y) {
+        clampedY = HORIZON_Y;
+      }
       
       // === SALAS: Verifica colisão com portais da sala atual ===
       for (const [portalName, portal] of Object.entries(PORTALS)) {
